@@ -15,10 +15,10 @@ jobs:
       - name: Deploy and Build on EC2 Server
         uses: appleboy/ssh-action@master
         with:
-          # Secret for EC2 IP/DNS
+          # Host IP/DNS
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          # Secret for SSH Key (using your customized name)
+          # Private Key (using your customized name)
           key: ${{ secrets.EC2_ANGULAR_SSH_PRIVATE_KEY }}
           # Increase timeout for the slow npm build process on EC2
           command_timeout: 20m 
@@ -33,19 +33,25 @@ jobs:
             # 2. Navigate to the repository directory
             cd /var/angular/
             
-            # 3. AUTHENTICATED GIT PULL (Fixes 'No such file or directory' error)
-            # This uses the PAT_TOKEN to pull the source code from your private repo
-            sudo git pull https://${{ secrets.PAT_TOKEN }}@github.com/ranacse/angular_test.git main 
+            # 3. FORCE PULL (The definitive fix for missing files)
+            echo "Attempting authenticated git pull..."
+            
+            # Fetch remote changes
+            sudo git fetch origin 
+            
+            # Force local repo to match remote, discarding any local changes/conflicts
+            sudo git reset --hard origin/main
             
             # 4. Install dependencies and build the code on the EC2
-            # NOTE: This creates the /var/angular/dist/angular_test folder
             sudo npm install 
+            # This creates the /var/angular/dist/angular_test folder
             sudo npm run build -- --output-path=./dist/angular_test --base-href=/
 
-            # 5. Ensure the web server owns the final built files
+            # 5. Correct Permissions and Ownership
             sudo chown -R www-data:www-data /var/angular/
+            sudo chmod -R 755 /var/angular/
             
-            # 6. Restart Apache (Must succeed now that port 80 is clear)
+            # 6. Restart Apache 
             sudo systemctl restart apache2
             
             echo "--- DEPLOYMENT SCRIPT FINISHED ---"
