@@ -17,8 +17,9 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
+          # This secret now contains the correctly converted PEM key
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          # Increase timeout for slow npm build on EC2
+          # Increase timeout for the slow npm build process on EC2
           command_timeout: 20m 
           
           script: |
@@ -31,7 +32,7 @@ jobs:
             sudo git pull origin main 
             
             # 3. Install dependencies and build the code on the EC2
-            # NOTE: This step requires Node.js/npm to be installed on EC2
+            # NOTE: This step is slow and resource-heavy
             sudo npm install 
             sudo npm run build -- --output-path=./dist/app-name --base-href=/
 
