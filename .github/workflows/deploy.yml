@@ -30,32 +30,30 @@ jobs:
             sudo systemctl stop nginx || true
             sudo systemctl disable nginx || true
             
-            # 2. Navigate to the repository directory
+            # 2. Navigate to the parent directory
+            cd /var/
+
+            # 3. FIX: Delete the old, corrupted directory and clone fresh
+            sudo rm -rf angular
+            
+            # 4. CLONE THE REPO (The definitive fix for missing files)
+            # This uses the PAT token to clone the repository with the name 'angular'
+            sudo git clone https://${{ secrets.PAT_TOKEN }}@github.com/ranacse/angular_test.git angular
+
+            # 5. Change to the new directory for subsequent commands
             cd /var/angular/
             
-            # 3. FIX: Add safe directory for the root user to resolve ownership errors
-            # This is critical for subsequent git commands to work
-            sudo git config --global --add safe.directory /var/angular
-            
-            # 4. AUTHENTICATED PULL (The definitive fix for authentication)
-            echo "Attempting authenticated git pull with PAT token..."
-            
-            # Fetch using the PAT token URL (Most reliable private repo access)
-            sudo git fetch https://${{ secrets.PAT_TOKEN }}@github.com/ranacse/angular_test.git main 
-            
-            # Force local repo to match the fetched remote, discarding conflicts
-            sudo git reset --hard FETCH_HEAD
-            
-            # 5. Install dependencies and build the code on the EC2
+            # 6. Install dependencies and build the code on the EC2
             sudo npm install 
             # This creates the /var/angular/dist/angular_test folder
             sudo npm run build -- --output-path=./dist/angular_test --base-href=/
 
-            # 6. Correct Permissions and Ownership (Fixes Forbidden error)
+            # 7. Correct Permissions and Ownership (Fixes Forbidden error)
+            # Must be done *after* cloning and building
             sudo chown -R www-data:www-data /var/angular/
             sudo chmod -R 755 /var/angular/
             
-            # 7. Restart Apache 
+            # 8. Restart Apache 
             sudo systemctl restart apache2
             
             echo "--- DEPLOYMENT SCRIPT FINISHED ---"
