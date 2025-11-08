@@ -33,24 +33,29 @@ jobs:
             # 2. Navigate to the repository directory
             cd /var/angular/
             
-            # 3. FORCE PULL (The definitive fix for missing files)
-            echo "Attempting simple git pull and hard reset..."
+            # 3. FIX: Add safe directory for the root user to resolve ownership errors
+            # This is critical for subsequent git commands to work
+            sudo git config --global --add safe.directory /var/angular
             
-            # Fetch remote changes
-            sudo git fetch origin 
-            # Force local repo to match remote, discarding any local changes/conflicts
-            sudo git reset --hard origin/main
+            # 4. AUTHENTICATED PULL (The definitive fix for authentication)
+            echo "Attempting authenticated git pull with PAT token..."
             
-            # 4. Install dependencies and build the code on the EC2
+            # Fetch using the PAT token URL (Most reliable private repo access)
+            sudo git fetch https://${{ secrets.PAT_TOKEN }}@github.com/ranacse/angular_test.git main 
+            
+            # Force local repo to match the fetched remote, discarding conflicts
+            sudo git reset --hard FETCH_HEAD
+            
+            # 5. Install dependencies and build the code on the EC2
             sudo npm install 
             # This creates the /var/angular/dist/angular_test folder
             sudo npm run build -- --output-path=./dist/angular_test --base-href=/
 
-            # 5. Correct Permissions and Ownership
+            # 6. Correct Permissions and Ownership (Fixes Forbidden error)
             sudo chown -R www-data:www-data /var/angular/
             sudo chmod -R 755 /var/angular/
             
-            # 6. Restart Apache 
+            # 7. Restart Apache 
             sudo systemctl restart apache2
             
             echo "--- DEPLOYMENT SCRIPT FINISHED ---"
