@@ -15,10 +15,10 @@ jobs:
       - name: Deploy and Build on EC2 Server
         uses: appleboy/ssh-action@master
         with:
-          # This secret must be created: EC2_HOST (Value: your EC2 IP)
+          # Secret for EC2 IP/DNS
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          # FIX: Using the correct secret name you created
+          # Secret for SSH Key (using your customized name)
           key: ${{ secrets.EC2_ANGULAR_SSH_PRIVATE_KEY }}
           # Increase timeout for the slow npm build process on EC2
           command_timeout: 20m 
@@ -26,21 +26,26 @@ jobs:
           script: |
             echo "--- STARTING BUILD & DEPLOY SCRIPT ON EC2 ---"
             
-            # 1. Navigate to the repository directory
+            # 1. Stop NGINX (Fixes port 80 conflict)
+            sudo systemctl stop nginx || true
+            sudo systemctl disable nginx || true
+            
+            # 2. Navigate to the repository directory
             cd /var/angular/
             
-            # 2. Pull the LATEST SOURCE CODE (The Git action you wanted)
-            # This requires the PAT_TOKEN secret and HTTPS URL for private repos
-            sudo git pull origin main 
+            # 3. AUTHENTICATED GIT PULL (Fixes 'No such file or directory' error)
+            # This uses the PAT_TOKEN to pull the source code from your private repo
+            sudo git pull https://${{ secrets.PAT_TOKEN }}@github.com/ranacse/angular_test.git main 
             
-            # 3. Install dependencies and build the code on the EC2
-            # NOTE: This step is slow and resource-heavy
+            # 4. Install dependencies and build the code on the EC2
+            # NOTE: This creates the /var/angular/dist/angular_test folder
             sudo npm install 
-            # IMPORTANT: Check your angular.json for the exact output path name
-            sudo npm run build -- --output-path=./dist/app-name --base-href=/
+            sudo npm run build -- --output-path=./dist/angular_test --base-href=/
 
-            # 4. Ensure the web server owns the final built files
+            # 5. Ensure the web server owns the final built files
             sudo chown -R www-data:www-data /var/angular/
+            
+            # 6. Restart Apache (Must succeed now that port 80 is clear)
             sudo systemctl restart apache2
             
             echo "--- DEPLOYMENT SCRIPT FINISHED ---"
