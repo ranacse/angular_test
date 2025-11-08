@@ -34,11 +34,10 @@ jobs:
             cd /var/angular/
             
             # 3. FORCE PULL (The definitive fix for missing files)
-            echo "Attempting authenticated git pull..."
+            echo "Attempting simple git pull and hard reset..."
             
             # Fetch remote changes
             sudo git fetch origin 
-            
             # Force local repo to match remote, discarding any local changes/conflicts
             sudo git reset --hard origin/main
             
