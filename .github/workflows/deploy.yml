@@ -1,4 +1,6 @@
 - name: Deploy and Build on EC2 Server
+on:
+  push:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
