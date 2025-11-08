@@ -1,0 +1,63 @@
+name: Angular CI/CD to EC2
+
+on:
+  push:
+    branches:
+      - main 
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Angular CI: Install Dependencies and Build the Production App
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Use an LTS version of Node.js
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install 
+
+      - name: Build Angular App
+        # IMPORTANT: Check your angular.json for the 'outputPath' name 
+        # The final build files will be in a subfolder like 'dist/angular_test'
+        run: npm run build -- --output-path=./dist/app-name --base-href=/
+
+      # 2. CD: Transfer the compiled files to EC2
+      - name: Deploy Built Files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          # Source: Path to the built files on the GitHub Runner
+          source: "./dist/app-name/*"  
+          # Target: Path to the Git repository on the EC2
+          target: "/var/angular"
+          strip_components: 0
+          
+      # 3. Final Permissions and Server Restart on EC2
+      - name: Final Permissions and Restart Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script_options: "-o StrictHostKeyChecking=no" 
+          script: |
+            # Navigate to the repository directory
+            cd /var/angular/
+            
+            # Use 'git reset --hard' to ensure the built files are accepted
+            sudo git reset --hard HEAD
+            
+            # Ensure the web server owns the files
+            sudo chown -R www-data:www-data /var/angular/
+            
+            # Restart Apache to load the new files
+            sudo systemctl restart apache2
