@@ -1,26 +1,41 @@
-- name: Deploy and Build on EC2 Server
+name: Angular CI/CD to EC2 (Build on Server)
+
 on:
   push:
+    branches:
+      - main 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Deploy and Build on EC2 Server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          # REMOVE: script_options: "-o StrictHostKeyChecking=no" 
-          command_timeout: 20m # Add a longer timeout for the slow build process
+          # Increase timeout for slow npm build on EC2
+          command_timeout: 20m 
+          
           script: |
             echo "--- STARTING BUILD & DEPLOY SCRIPT ON EC2 ---"
             
+            # 1. Navigate to the repository directory
             cd /var/angular/
             
-            # 1. Pull the LATEST SOURCE CODE
+            # 2. Pull the LATEST SOURCE CODE (The Git action you wanted)
             sudo git pull origin main 
             
-            # 2. Install dependencies and build the code on the EC2
+            # 3. Install dependencies and build the code on the EC2
+            # NOTE: This step requires Node.js/npm to be installed on EC2
             sudo npm install 
             sudo npm run build -- --output-path=./dist/app-name --base-href=/
 
-            # 3. Ensure the web server owns the final built files
+            # 4. Ensure the web server owns the final built files
             sudo chown -R www-data:www-data /var/angular/
             sudo systemctl restart apache2
             
